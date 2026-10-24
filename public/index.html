@@ -7174,7 +7174,7 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
             </div>
             <div style="flex: 1;">
               <label style="font-size: 18px; font-weight: 600; color: #2c3e50; margin: 0; display: block;">Foto Oficial</label>
-              <span style="font-size: 13px; color: #6c757d;">Máximo 5MB • Formatos: JPG, PNG, GIF</span>
+              <span style="font-size: 13px; color: #6c757d;">Formatos: JPG, PNG, GIF • fotos grandes são reduzidas automaticamente</span>
             </div>
           </div>
           
@@ -7247,7 +7247,7 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
             </div>
             <div style="flex: 1;">
               <label style="font-size: 18px; font-weight: 600; color: #2c3e50; margin: 0; display: block;">Outras Fotos</label>
-              <span style="font-size: 13px; color: #6c757d;">Até 3 fotos • Máximo 5MB cada • Formatos: JPG, PNG, GIF</span>
+              <span style="font-size: 13px; color: #6c757d;">Até 3 fotos • Formatos: JPG, PNG, GIF • fotos grandes são reduzidas automaticamente</span>
             </div>
           </div>
           
@@ -7457,7 +7457,7 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
           <div id="atividades-arquivos-lista"></div>
         </div>
         
-        <label style="margin-top: 20px;">Foto Oficial (máx. 5MB):</label>
+        <label style="margin-top: 20px;">Foto Oficial (JPG, PNG ou GIF):</label>
         <input type="file" id="atividade-fotoOficial" accept="image/*">
         
         <!-- CORRIGIDO: Área para mostrar imagem existente durante edição -->
@@ -7728,6 +7728,9 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
     
     // Variáveis do módulo de campanhas
     let quillCampanhas;
+    // true = o editor da campanha deve ser recriado (nova campanha). Senão, o passo 5
+    // reaproveita o editor existente e o texto digitado não se perde.
+    let quillCampanhasPrecisaReset = true;
     let campanhasList = [];
     let campanhasFiltered = [];
     let campanhaEditando = null;
@@ -10154,11 +10157,19 @@ function inicializarSistema() {
       // Verificar se o passo 5 está ativo antes de inicializar
       const step5 = document.getElementById('step-campanhas-5');
       const isStep5Active = step5 && step5.classList.contains('active');
-      
+      // Editor já existe para esta campanha: não recriar (recriar apagava o texto digitado
+      // ao voltar do passo 5 para o 4 e avançar de novo).
+      const manterEditorCampanha = !!(quillCampanhas && !quillCampanhasPrecisaReset &&
+        campanhaEditorContainer.querySelector('.ql-editor'));
+
       if (!isStep5Active) {
         console.log('ℹ️ Passo 5 não está ativo, editor será inicializado quando o passo for aberto');
         // Não retornar - continuar para outros editores
+      } else if (manterEditorCampanha) {
+        quillCampanhas.enable(true);
+        console.log('✅ Editor de campanhas reaproveitado (conteúdo mantido)');
       } else {
+        quillCampanhasPrecisaReset = false;
         console.log('✅ Passo 5 está ativo, inicializando editor...');
         
         // Verificar se já existe uma instância e destruí-la completamente
@@ -23294,6 +23305,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
       'Ômega São José do Cedro': 'Região A',
       'Ômega Itapiranga': 'Região A',
       'Ômega Guaraciaba': 'Região A',
+      'Ômega Iporã do Oeste': 'Região A',
       'Ômega Pinhalzinho': 'Região A',
       'Ômega Iraceminha': 'Região A',
       'Ômega Maravilha': 'Região A',
@@ -31785,16 +31797,70 @@ ${erro.message || erro}`);
      }
    }
 
+   // === AL / TRIMESTRE DOS FORMULÁRIOS DE ATIVIDADE E CAMPANHA ===
+   // Registros gravam o AL com barra ("2026/2027"). AL vai de julho a junho.
+   function alDaDataComBarra(data) {
+     const d = data instanceof Date ? data : null;
+     if (!d || isNaN(d.getTime())) return '';
+     const ano = d.getFullYear();
+     return (d.getMonth() + 1 >= 7) ? (ano + '/' + (ano + 1)) : ((ano - 1) + '/' + ano);
+   }
+
+   // Trimestre padrão pela data (jul–set = 1º, out–dez = 2º, jan–mar = 3º, abr–jun = 4º).
+   function trimestreDaData(data) {
+     const mes = data.getMonth() + 1;
+     if (mes >= 7 && mes <= 9) return '1º Trimestre';
+     if (mes >= 10) return '2º Trimestre';
+     if (mes <= 3) return '3º Trimestre';
+     return '4º Trimestre';
+   }
+
+   // Seleciona `valor` no <select>; se a opção não existir (AL antigo/novo), cria.
+   function definirValorSelect(selectId, valor) {
+     const sel = document.getElementById(selectId);
+     if (!sel) return;
+     const v = String(valor || '').trim();
+     if (!v) { sel.selectedIndex = 0; return; }
+     const existe = Array.from(sel.options).some(o => o.value === v);
+     if (!existe) {
+       const opt = document.createElement('option');
+       opt.value = v;
+       opt.textContent = v;
+       sel.appendChild(opt);
+     }
+     sel.value = v;
+   }
+
+   function selecionarALETrimestreAtuais(alId, trimestreId) {
+     const hoje = new Date();
+     definirValorSelect(alId, alDaDataComBarra(hoje));
+     definirValorSelect(trimestreId, trimestreDaData(hoje));
+   }
+
+   // Bloqueia envio quando a data de início pertence a outro AL que não o selecionado.
+   function validarALCompativelComData(alId, dataId) {
+     const alSel = (document.getElementById(alId)?.value || '').trim();
+     const dataStr = (document.getElementById(dataId)?.value || '').trim();
+     const m = dataStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+     if (!alSel || !m) return true;
+     const alData = alDaDataComBarra(new Date(+m[1], +m[2] - 1, +m[3]));
+     if (alData && alData !== alSel.replace(/-/g, '/')) {
+       mostrarModal(`A data de início (${m[3]}/${m[2]}/${m[1]}) pertence ao AL ${alData}, mas o AL selecionado é ${alSel}. Corrija o AL no primeiro passo do formulário.`, 'aviso', 'AL incorreto');
+       return false;
+     }
+     return true;
+   }
+
    function limparFormularioCampanhas() {
      // CORRIGIDO: Só limpar se não estiver editando
      if (campanhaEditando) {
        console.log('⚠️ Formulário de campanhas não limpo - modo de edição ativo');
        return;
      }
-     
-     // Limpar campos básicos
-     document.getElementById("campanha-al").selectedIndex = 0;
-     document.getElementById("campanha-trimestre").selectedIndex = 0;
+
+     // Limpar campos básicos (AL e trimestre começam no vigente, não na 1ª opção)
+     selecionarALETrimestreAtuais("campanha-al", "campanha-trimestre");
+     quillCampanhasPrecisaReset = true;
      document.getElementById("campanha-titulo").value = "";
      document.getElementById("campanha-objetivo").value = "";
      document.getElementById("campanha-dataInicio").value = "";
@@ -32277,11 +32343,8 @@ ${erro.message || erro}`);
      
      try {
        // Limpar campos básicos (com verificação de existência)
-       const atividadeAl = document.getElementById("atividade-al");
-       if (atividadeAl) atividadeAl.selectedIndex = 0;
-       
-       const atividadeTrimestre = document.getElementById("atividade-trimestre");
-       if (atividadeTrimestre) atividadeTrimestre.selectedIndex = 0;
+       // AL e trimestre começam no vigente (antes ficava na 1ª opção = AL passado)
+       selecionarALETrimestreAtuais("atividade-al", "atividade-trimestre");
        
        const atividadeTitulo = document.getElementById("atividade-titulo");
        if (atividadeTitulo) atividadeTitulo.value = "";
@@ -32759,6 +32822,7 @@ ${erro.message || erro}`);
      }
 
      if (!validarDataHoraCampanha()) return;
+     if (!validarALCompativelComData("campanha-al", "campanha-dataInicio")) return;
      if (!validarFormularioCampanhaCompleto()) return;
 
      const agoraDebCamp = Date.now();
@@ -32950,6 +33014,7 @@ ${erro.message || erro}`);
      }
      
      if (!validarDataHoraAtividade()) return;
+     if (!validarALCompativelComData("atividade-al", "atividade-dataInicio")) return;
      if (!validarFormularioAtividadeCompleto()) return;
 
      const agoraDeb = Date.now();
@@ -33568,6 +33633,41 @@ ${erro.message || erro}`);
     });
   }
 
+  const UPLOAD_FOTO_ORIGINAL_MAX_BYTES = 25 * 1024 * 1024;
+  const UPLOAD_VIDEO_MAX_BYTES = 25 * 1024 * 1024;
+  // A Vercel recusa requisições acima de ~4,5MB; base64 ocupa ~33% a mais que o arquivo.
+  const UPLOAD_FOTO_BASE64_MAX_CHARS = 4 * 1024 * 1024;
+
+  function formatarTamanhoArquivo(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + 'MB';
+  }
+
+  // Pede ao servidor um link assinado, envia o vídeo direto ao Supabase Storage e
+  // confirma, para o servidor gravar a URL na campanha.
+  async function enviarVideoDiretoStorage(file, nomeFinal, registroId) {
+    if (!registroId || String(registroId).startsWith('TEMP_')) {
+      throw new Error('Salve a campanha antes de enviar o vídeo.');
+    }
+    const clube = usuarioLogado.clube;
+    const tipo = (file.type || '').toLowerCase();
+    const preparo = await callGAS('portalCriarUploadDiretoVideoCampanha', nomeFinal, clube, registroId, tipo, file.size);
+    if (!preparo || !preparo.sucesso) throw new Error((preparo && preparo.erro) || 'Falha ao preparar envio do vídeo.');
+
+    const resp = await fetch(preparo.uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': tipo, 'x-upsert': 'true' },
+      body: file
+    });
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => '');
+      throw new Error(`Falha ao enviar o vídeo (${resp.status}). ${txt}`.trim());
+    }
+
+    const conf = await callGAS('portalConfirmarUploadDiretoVideoCampanha', clube, registroId, preparo.caminho);
+    if (!conf || !conf.sucesso) throw new Error((conf && conf.erro) || 'Vídeo enviado, mas não foi possível registrá-lo na campanha.');
+    return conf;
+  }
+
   function processUpload(file, nomeFinal, pastaTag, registroId = null) {
      return new Promise((resolve, reject) => {
       if (!isArquivoPermitido(file, pastaTag)) {
@@ -33580,11 +33680,20 @@ ${erro.message || erro}`);
       }
       uploadArquivosEmAndamento.add(uploadKey);
 
-       const maxSize = (pastaTag === 'VIDEOS') ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
+       // Fotos são reduzidas antes do envio, então o limite do arquivo original é folgado
+       // (fotos de celular passam fácil de 5MB). O que vale é o tamanho depois da compressão.
+       const maxSize = (pastaTag === 'VIDEOS') ? UPLOAD_VIDEO_MAX_BYTES : UPLOAD_FOTO_ORIGINAL_MAX_BYTES;
        if (file.size > maxSize) {
-         mostrarModal(`${file.name} excede o limite permitido.`, 'aviso', 'Arquivo muito grande');
         uploadArquivosEmAndamento.delete(uploadKey);
-        return resolve({ sucesso: false });
+        return reject(new Error(`${file.name} é muito grande (${formatarTamanhoArquivo(file.size)}). Máximo: ${formatarTamanhoArquivo(maxSize)}.`));
+       }
+
+       // Vídeo vai direto do navegador para o Storage: a API recusa envios acima de ~4,5MB.
+       if (pastaTag === 'VIDEOS') {
+        enviarVideoDiretoStorage(file, nomeFinal, registroId)
+          .then(resolve, reject)
+          .finally(() => uploadArquivosEmAndamento.delete(uploadKey));
+        return;
        }
 
        const reader = new FileReader();
@@ -33598,6 +33707,12 @@ ${erro.message || erro}`);
          console.log(`Upload iniciado para arquivo: ${nomeFinal}, Registro ID: ${registroId}`);
 
          comprimirDataUrlImagem(e.target.result, file.type).then((dataUrlFinal) => {
+           if (dataUrlFinal.length > UPLOAD_FOTO_BASE64_MAX_CHARS) {
+             clearTimeout(timeoutId);
+             uploadArquivosEmAndamento.delete(uploadKey);
+             reject(new Error(`Não foi possível reduzir a foto "${file.name}" para envio. Envie a foto em JPG ou PNG (fotos HEIC do iPhone não são suportadas por alguns navegadores).`));
+             return;
+           }
            google.script.run
             .withSuccessHandler((resultado) => {
                clearTimeout(timeoutId);
@@ -35506,8 +35621,8 @@ function fecharFullscreen() {
        console.log('Preenchendo dados da campanha para edição:', campanha.titulo);
        
        // Preencher dados básicos
-       document.getElementById("campanha-al").value = campanha.al || '';
-       document.getElementById("campanha-trimestre").value = campanha.trimestre || '';
+       definirValorSelect("campanha-al", campanha.al);
+       definirValorSelect("campanha-trimestre", campanha.trimestre);
        document.getElementById("campanha-titulo").value = campanha.titulo || '';
        document.getElementById("campanha-objetivo").value = campanha.objetivo || '';
 
@@ -35538,7 +35653,7 @@ function fecharFullscreen() {
          document.getElementById("campanha-custoCampanha").value = valorFormatado;
        }
        
-       document.getElementById("campanha-qtdLeoesParticipantes").value = campanha.qtdLeoesParticipantes || '';
+       document.getElementById("campanha-qtdLeoesParticipantes").value = (campanha.qtdLeoesParticipantes != null) ? campanha.qtdLeoesParticipantes : '';
 
       // Preencher editor Quill (descrição da campanha)
       if (quillCampanhas) {
@@ -35908,9 +36023,11 @@ function fecharFullscreen() {
        setTimeout(inicializarPreviewUploads, 100);
        return;
      }
-    
-    // Resetar array de fotos ao inicializar
-    outrasFotosSelecionadas = [];
+    // Os listeners ficam em elementos fixos do formulário: liga só uma vez.
+    // Antes, cada ida ao passo 6 duplicava listeners e zerava as "outras fotos"
+    // escolhidas (o reset fica em limparFormularioCampanhas / editarCampanha).
+    if (window.__previewUploadsCampanhaInicializado) return;
+    window.__previewUploadsCampanhaInicializado = true;
      // Preview Foto Oficial
      const fotoInput = document.getElementById('campanha-fotoOficial');
      const fotoPreview = document.getElementById('upload-foto-preview');
@@ -36035,10 +36152,7 @@ function fecharFullscreen() {
      const outrasGrid = document.getElementById('outras-fotos-preview-grid');
      const outrasContent = document.getElementById('upload-outras-content');
      const outrasArea = document.getElementById('upload-area-outras');
-     
-    // Resetar array ao inicializar preview
-    outrasFotosSelecionadas = [];
-    
+
     // Função para atualizar o preview e o input file
     function atualizarPreviewOutrasFotos() {
       // Limpar completamente o grid antes de adicionar novos elementos
@@ -36274,8 +36388,8 @@ function fecharFullscreen() {
        console.log('Preenchendo dados da atividade para edição:', atividade.titulo);
        
        // Preencher dados básicos
-       document.getElementById("atividade-al").value = atividade.al || '';
-       document.getElementById("atividade-trimestre").value = atividade.trimestre || '';
+       definirValorSelect("atividade-al", atividade.al);
+       definirValorSelect("atividade-trimestre", atividade.trimestre);
        document.getElementById("atividade-titulo").value = atividade.titulo || '';
        document.getElementById("atividade-tipoAtividade").value = atividade.tipoAtividade || '';
        document.getElementById("atividade-localAtividade").value = atividade.localAtividade || '';
@@ -37735,7 +37849,7 @@ function fecharFullscreen() {
 
     const mapeamentoRegioes = {
       'Ômega Mondaí': 'Região A', 'Ômega São Miguel do Oeste Universidade': 'Região A', 'Ômega São José do Cedro': 'Região A',
-      'Ômega Itapiranga': 'Região A', 'Ômega Guaraciaba': 'Região A', 'Ômega Pinhalzinho': 'Região A', 'Ômega Iraceminha': 'Região A',
+      'Ômega Itapiranga': 'Região A', 'Ômega Guaraciaba': 'Região A', 'Ômega Iporã do Oeste': 'Região A', 'Ômega Pinhalzinho': 'Região A', 'Ômega Iraceminha': 'Região A',
       'Ômega Maravilha': 'Região A', 'Ômega Modelo': 'Região A', 'Ômega Saudades': 'Região A', 'Ômega Cunha Porã': 'Região A',
       'Alpha Pinhalzinho': 'Região A', 'Alpha Iraceminha': 'Região A', 'Alpha Modelo': 'Região A',
       'Ômega Xanxerê': 'Região B', 'Ômega São Lourenço do Oeste': 'Região B', 'Ômega Campo Erê': 'Região B', 'Ômega Abelardo Luz': 'Região B',
@@ -38240,6 +38354,7 @@ function fecharFullscreen() {
        'Ômega São José do Cedro': 'Região A',
        'Ômega Itapiranga': 'Região A',
        'Ômega Guaraciaba': 'Região A',
+       'Ômega Iporã do Oeste': 'Região A',
        'Ômega Pinhalzinho': 'Região A',
        'Ômega Iraceminha': 'Região A',
        'Ômega Maravilha': 'Região A',

@@ -121,6 +121,7 @@ async function verifyAuth(req) {
 
 // ─── Event-staff token verification ───────────────────────────────────────
 const { validEventStaffToken } = require('../lib/event-staff-auth');
+const { sincronizarClubesDoSupabase } = require('../lib/clubes_sync');
 
 // Actions the scanner and camisas pages call — authorised by event-staff token OR JWT.
 // Enumerated from grep of public/scanner_refeicoes.html and public/camisas_enumeradas.html.
@@ -258,6 +259,7 @@ module.exports = async function handler(req, res) {
   }
 
   loadBackend();
+  await sincronizarClubesDoSupabase();
 
   const fn = allFunctions[action];
   if (!fn) {
