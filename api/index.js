@@ -154,11 +154,37 @@ const PUBLIC_ACTIONS = new Set([
   'validarAcessoStaffEvento',    // token validity check used by scanner/camisas UI (no data returned)
 ]);
 
-// TODO (A1-02): per-action role enforcement — stub below for next task.
-// const ACTION_ROLES = {
-//   'deletarInscricao': ['admin', 'diretoria'],
-//   // ...
-// };
+// ─── Per-action role enforcement ──────────────────────────────────────────
+// Ações que só alguns tipos de acesso (usuarios_acessos.tipo_acesso) podem chamar.
+// TODO (A1-02): ampliar para as demais ações sensíveis.
+const ACTION_ROLES = {
+  // Total de inscritos por evento: só Gabinete (distrito) e Assessoria de Eventos.
+  portalContarInscricoesEventos: ['distrito', 'distrital', 'evento', 'eventos'],
+  portalContarInscricoesPorEvento: ['distrito', 'distrital', 'evento', 'eventos'],
+};
+
+/** Busca o tipo_acesso (minúsculo) do usuário logado em usuarios_acessos; null se não achar ou se estiver inativo. */
+async function getTipoAcesso(authUser) {
+  if (!authUser || (!authUser.id && !authUser.email)) return null;
+  const supabaseUrl = process.env.SUPABASE_URL || 'https://bqkttaflhtsdkamgscnf.supabase.co';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!key) return null;
+  const filtros = [];
+  if (authUser.id) filtros.push(`auth_user_id.eq.${encodeURIComponent(authUser.id)}`);
+  if (authUser.email) filtros.push(`email.eq.${encodeURIComponent(authUser.email)}`);
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/usuarios_acessos?select=tipo_acesso,ativo&or=(${filtros.join(',')})&limit=1`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` }
+    });
+    if (res.status !== 200) return null;
+    const rows = await res.json();
+    const row = Array.isArray(rows) ? rows[0] : null;
+    if (!row || row.ativo === false) return null;
+    return String(row.tipo_acesso || '').toLowerCase().trim() || null;
+  } catch {
+    return null;
+  }
+}
 
 // ─── Handler ───────────────────────────────────────────────────────────────
 module.exports = async function handler(req, res) {
@@ -220,6 +246,13 @@ module.exports = async function handler(req, res) {
       const authUser = await verifyAuth(req);
       if (!authUser) {
         return res.status(401).json({ sucesso: false, erro: 'Não autenticado. Faça login novamente.' });
+      }
+      const rolesPermitidos = ACTION_ROLES[action];
+      if (rolesPermitidos) {
+        const tipoAcesso = await getTipoAcesso(authUser);
+        if (!tipoAcesso || !rolesPermitidos.includes(tipoAcesso)) {
+          return res.status(403).json({ sucesso: false, erro: 'Sem permissão para esta ação.' });
+        }
       }
     }
   }

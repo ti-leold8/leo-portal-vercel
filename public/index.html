@@ -16211,7 +16211,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
       if (titulo) titulo.textContent = ev.nome || 'Evento';
       if (subtitulo) {
         const periodo = formatarPeriodoEventoResumo(ev) || '';
-        const total = (window.eventosGaleriaContagens && window.eventosGaleriaContagens[ev.id]) != null ? window.eventosGaleriaContagens[ev.id] : '-';
+        const total = (podeVerTotalInscritosEventos() && window.eventosGaleriaContagens && window.eventosGaleriaContagens[ev.id] != null) ? window.eventosGaleriaContagens[ev.id] : '-';
         subtitulo.textContent = (ev.clubeSedeNome ? ev.clubeSedeNome + ' • ' : '') + periodo + (total !== '-' ? ' • Total de ' + total + ' participantes' : '');
       }
     }
@@ -16886,7 +16886,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
             <div class="evento-card-meta">
               <span>${iconeLocal} ${local || '-'}</span>
               <span>${iconeData} ${periodo}</span>
-              <span>${iconePessoas} ${total} participante(s)</span>
+              ${podeVerTotalInscritosEventos() ? `<span>${iconePessoas} ${total} participante(s)</span>` : ''}
             </div>
             ${descricao ? `<p class="evento-card-desc">${descricao}${(evento.descricao||'').trim().length > 120 ? '...' : ''}</p>` : ''}
             <div class="evento-card-acoes" onclick="event.stopPropagation()">
@@ -17099,6 +17099,11 @@ function atualizarEstatisticasGerenciaisFiltradas() {
     `;
   }
 
+  /** Total de inscritos por evento: só Gabinete (distrito) e Assessoria de Eventos veem. A API aplica a mesma regra. */
+  function podeVerTotalInscritosEventos() {
+    return !!((typeof isDistrital !== 'undefined' && isDistrital) || (typeof isEventos !== 'undefined' && isEventos));
+  }
+
   function carregarResumoEventosInscricoes(eventos) {
     const lista = Array.isArray(eventos) ? eventos : [];
     const ids = lista.map(evento => evento.id).filter(Boolean);
@@ -17108,7 +17113,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
     }
     // Contagem e lotes ativos são independentes — buscar em paralelo (antes: sequenciais)
     Promise.all([
-      promiseRun('portalContarInscricoesEventos', ids),
+      podeVerTotalInscritosEventos() ? promiseRun('portalContarInscricoesEventos', ids) : Promise.resolve({}),
       promiseRun('portalEventosComLotesAtivos', ids)
     ]).then(function(results) {
       const mapa     = results[0] && typeof results[0] === 'object' ? results[0] : {};
@@ -19872,7 +19877,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
       <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:16px 24px; color:#6c757d; font-size:14px; margin-bottom:24px; padding:16px 0; border-bottom:1px solid #e9ecef;">
         <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-map-marker-alt" style="color:#6c757d;"></i><span>${local || 'Não informado'}</span></div>
         <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-calendar-alt" style="color:#6c757d;"></i><span>${periodo}</span></div>
-        <div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-users" style="color:#6c757d;"></i><span>${total} participante(s)</span></div>
+        ${podeVerTotalInscritosEventos() ? `<div style="display:flex; align-items:center; gap:8px;"><i class="fas fa-users" style="color:#6c757d;"></i><span>${total} participante(s)</span></div>` : ''}
       </div>
       ${descSectionHtml}
       <div style="margin-top:24px; padding-top:20px; border-top:1px solid #e9ecef; display:flex; flex-wrap:wrap; justify-content:center; gap:10px;">
