@@ -42,3 +42,38 @@ describe('portalContarInscricoesPorLote', () => {
     await assert.rejects(() => portal.portalContarInscricoesPorLote('lote-3'));
   });
 });
+
+describe('portalListarLotesEventoComUsoReal', () => {
+  it('mostra as inscrições reais e corrige o número salvo só quando está diferente', async () => {
+    const lotes = [
+      { id: 'relampago', evento_id: 'ev', nome_lote: 'Lote Relâmpago', quantidade_total: 120, quantidade_usada: 1, ativo: false },
+      { id: 'primeiro', evento_id: 'ev', nome_lote: '1º Lote', quantidade_total: 200, quantidade_usada: 1, ativo: true },
+      { id: 'certo', evento_id: 'ev', nome_lote: '2º Lote', quantidade_total: 100, quantidade_usada: 0, ativo: true }
+    ];
+    const reais = { relampago: 126, primeiro: 103, certo: 0 };
+    const patches = [];
+    globalThis.fetch = async (url, opts) => {
+      const u = decodeURIComponent(String(url));
+      const metodo = (opts && opts.method) || 'GET';
+      if (metodo === 'PATCH') {
+        patches.push({ id: u.match(/id=eq\.([^&]+)/)[1], body: JSON.parse(opts.body) });
+        return new Response(null, { status: 204 });
+      }
+      if (u.includes('eventos_inscricoes') && u.includes('lote_id=eq.')) {
+        const id = u.match(/lote_id=eq\.([^&]+)/)[1];
+        return new Response('[]', { status: 206, headers: { 'content-range': '0-0/' + reais[id] } });
+      }
+      if (/[?&]id=eq./.test(u)) {
+        const id = u.match(/[?&]id=eq\.([^&]+)/)[1];
+        return new Response(JSON.stringify(lotes.filter(l => l.id === id)), { status: 200 });
+      }
+      return new Response(JSON.stringify(lotes), { status: 200 });
+    };
+
+    const resultado = await portal.portalListarLotesEventoComUsoReal('ev');
+    const porId = Object.fromEntries(resultado.map(l => [l.id, l.quantidadeUsada]));
+    assert.deepEqual(porId, { relampago: 126, primeiro: 103, certo: 0 });
+    assert.deepEqual(patches.map(p => p.id).sort(), ['primeiro', 'relampago']);
+    patches.forEach(p => assert.deepEqual(p.body, { quantidade_usada: reais[p.id] }));
+  });
+});
