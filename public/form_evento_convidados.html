@@ -149,7 +149,7 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
       function preencherMetaLoteValor(nomeLote, restantes, valor) {
         const metaLote = document.getElementById('evento-meta-lote');
         const metaValor = document.getElementById('evento-meta-valor');
-        metaLote.textContent = nomeLote ? '🎫 ' + nomeLote + (restantes !== undefined ? ' • ' + restantes + ' vaga(s)' : '') : '';
+        metaLote.textContent = nomeLote ? '🎫 ' + nomeLote : '';
         if (valor != null && valor > 0) {
           metaValor.textContent = 'Valor: R$ ' + valor.toFixed(2).replace('.', ',');
           metaValor.style.display = '';
@@ -190,7 +190,7 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
             info.lotes.forEach(function(l) {
               const opt = document.createElement('option');
               opt.value = l.id;
-              opt.textContent = (l.nomeLote || 'Lote') + ' – ' + l.restantes + ' vaga(s)' + (l.valor > 0 ? ' – R$ ' + l.valor.toFixed(2).replace('.', ',') : '');
+              opt.textContent = (l.nomeLote || 'Lote') + (l.valor > 0 ? ' – R$ ' + l.valor.toFixed(2).replace('.', ',') : '');
               selLote.appendChild(opt);
             });
             selLote.addEventListener('change', function() {
@@ -199,7 +199,7 @@ window.__SUPABASE_ANON_KEY__ = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ
               const l = v ? info.lotes.find(function(x) { return String(x.id) === v; }) : null;
               if (l) {
                 preencherMetaLoteValor(l.nomeLote, l.restantes, l.valor);
-                loteInfo.textContent = l.restantes + ' vaga(s) restante(s)';
+                loteInfo.textContent = '';
               } else {
                 document.getElementById('evento-meta-lote').textContent = '';
                 document.getElementById('evento-meta-valor').style.display = 'none';

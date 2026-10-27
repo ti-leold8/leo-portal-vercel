@@ -17340,7 +17340,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
       if (lote.dataInicio) vig.push('início ' + formatarDataHoraVigenciaLote(lote.dataInicio));
       if (lote.dataFim) vig.push('fim ' + formatarDataHoraVigenciaLote(lote.dataFim));
       const vigTxt = vig.length ? (' | Vig.: ' + vig.join(' · ')) : '';
-       info.textContent = `Lote atual: ${lote.nomeLote || 'Sem nome'} | Restantes: ${restantes} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
+       info.textContent = `Lote atual: ${lote.nomeLote || 'Sem nome'}${podeVerTotalInscritosEventos() ? ' | Restantes: ' + restantes : ''} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
     }).withFailureHandler(err => {
       console.error('Erro ao buscar lote atual:', err);
       info.textContent = 'Erro ao carregar lote atual.';
@@ -17415,7 +17415,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
     if (lote.dataInicio) vig.push('início ' + formatarDataHoraVigenciaLote(lote.dataInicio));
     if (lote.dataFim) vig.push('fim ' + formatarDataHoraVigenciaLote(lote.dataFim));
     const vigTxt = vig.length ? (' | Vig.: ' + vig.join(' · ')) : '';
-    info.textContent = `Lote selecionado: ${lote.nomeLote || 'Sem nome'} | Restantes: ${restantes} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
+    info.textContent = `Lote selecionado: ${lote.nomeLote || 'Sem nome'}${podeVerTotalInscritosEventos() ? ' | Restantes: ' + restantes : ''} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
     atualizarTotalEvento();
    }
 
@@ -18410,7 +18410,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
       if (lote.dataInicio) vig.push('início ' + formatarDataHoraVigenciaLote(lote.dataInicio));
       if (lote.dataFim) vig.push('fim ' + formatarDataHoraVigenciaLote(lote.dataFim));
       const vigTxt = vig.length ? (' | Vig.: ' + vig.join(' · ')) : '';
-      info.textContent = `Lote atual: ${lote.nomeLote || 'Sem nome'} | Restantes: ${restantes} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
+      info.textContent = `Lote atual: ${lote.nomeLote || 'Sem nome'}${podeVerTotalInscritosEventos() ? ' | Restantes: ' + restantes : ''} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
     }).withFailureHandler(err => {
       console.error('Erro ao buscar lote atual:', err);
       info.textContent = 'Erro ao carregar lote atual.';
@@ -18481,7 +18481,7 @@ function atualizarEstatisticasGerenciaisFiltradas() {
     if (lote.dataInicio) vig.push('início ' + formatarDataHoraVigenciaLote(lote.dataInicio));
     if (lote.dataFim) vig.push('fim ' + formatarDataHoraVigenciaLote(lote.dataFim));
     const vigTxt = vig.length ? (' | Vig.: ' + vig.join(' · ')) : '';
-    info.textContent = `Lote selecionado: ${lote.nomeLote || 'Sem nome'} | Restantes: ${restantes} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
+    info.textContent = `Lote selecionado: ${lote.nomeLote || 'Sem nome'}${podeVerTotalInscritosEventos() ? ' | Restantes: ' + restantes : ''} | Valor: ${formatarMoedaBRL(lote.valor || 0)}${vigTxt}`;
     atualizarTotalEventoClubes();
   }
 
